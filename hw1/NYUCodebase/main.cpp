@@ -80,6 +80,8 @@ int main(int argc, char *argv[])
     // Texture shader
     ShaderProgram program_textured;
     program_textured.Load(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glUseProgram(program_textured.programID);
     
     // Texture assets
@@ -126,8 +128,6 @@ int main(int argc, char *argv[])
         glEnableVertexAttribArray(program_textured.positionAttribute);
         glVertexAttribPointer(program_textured.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoords);
         glEnableVertexAttribArray(program_textured.texCoordAttribute);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         // Drawing alien1
         program_textured.SetModelMatrix(modelMatrixAlien1);
         glBindTexture(GL_TEXTURE_2D, alienTexture1);
@@ -151,7 +151,6 @@ int main(int argc, char *argv[])
         // glDisables
         glDisableVertexAttribArray(program_textured.positionAttribute);
         glDisableVertexAttribArray(program_textured.texCoordAttribute);
-        glDisable(GL_BLEND);
         
         // Display
         SDL_GL_SwapWindow(displayWindow);
