@@ -86,7 +86,7 @@ public:
     void reset() {
         pixelX = 480;
         pixelY = 360;
-        velocityX = -300;
+        velocityX = 0;
         velocityY = 0;
     }
 };
@@ -176,18 +176,20 @@ void Update() {
     }
     if (ball.checkCollision(player1, elapsed)) {
         ball.velocityX *= -1.1;
-        ball.velocityY = player1.velocityY * 1.1;
+        ball.velocityY = (player1.velocityY * 1.1 + ball.velocityY) / 2;
     } else if (ball.checkCollision(player2, elapsed)) {
         ball.velocityX *= -1.1;
-        ball.velocityY = player2.velocityY * 1.1;
+        ball.velocityY = (player2.velocityY * 1.1 + ball.velocityY) / 2;
     } else if (ball.checkCollision(leftGoal, elapsed)) {
         std::cout << "Player2 wins!";
         ball.reset();
+        ball.velocityX = -300;
         player1.reset();
         player2.reset();
     } else if (ball.checkCollision(rightGoal, elapsed)) {
         std::cout << "Player1 wins!";
         ball.reset();
+        ball.velocityX = 300;
         player1.reset();
         player2.reset();
     } else if (ball.checkCollision(upperWall, elapsed) || ball.checkCollision(lowerWall, elapsed)) {
