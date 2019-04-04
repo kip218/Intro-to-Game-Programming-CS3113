@@ -32,74 +32,12 @@ enum GameMode { TITLE_SCREEN, GAME_LEVEL };
 GLuint font;
 
 
-
-// Game classes
-class Object {
-public:
-    Object(float x, float y, float width, float height)
-        : position(x, y, 0), size(width, height, 0) {}
-    void draw(ShaderProgram &p) {
-        // Transforming matrix
-        float glX = ((position[0] / 960) * 2.666) - 1.333;
-        float glY = (((720 - position[1]) / 720) * 2.0) - 1.0;
-        float glWidth = (size[0] / 960) * 2.666;
-        float glHeight = (size[1] / 720) * 2.0;
-        glm::mat4 objectModelMatrix = glm::translate(modelMatrix, glm::vec3(glX, glY, 0.0));
-        objectModelMatrix = glm::scale(objectModelMatrix, glm::vec3(glWidth, glHeight, 1.0));
-        p.SetModelMatrix(objectModelMatrix);
-        
-        // Draw
-        float vertices[] = {0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, 0.5};
-        glVertexAttribPointer(p.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
-        glEnableVertexAttribArray(p.positionAttribute);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-    }
-    glm::vec3 position;
-    glm::vec3 size;
-};
-
-class GameObject : public Object {
-public:
-    using Object::Object;
-    float velocityX = 0;
-    float velocityY = 0;
-};
-class Player : public GameObject {
-public:
-    using GameObject::GameObject;
-};
-
-class TextBox : public Object {
-public:
-    TextBox(float x, float y, float width, float height, std::string text)
-        : Object(x, y, width, height), text(text) {};
-    std::string text;
-};
-
-class TitleScreen {
-public:
-    TitleScreen()
-        : title(480, 200, 500, 100, "Space Invaders"), playButton(480, 400, 300, 100, "Play") {};
-    void render() {
-        title.draw(program);
-        playButton.draw(program);
-    }
-    TextBox title;
-    TextBox playButton;
-};
-
-class GameLevel {
-public:
-    
-};
-
-
 // Helper functions
 void DrawText(ShaderProgram &program, int fontTexture, std::string text, float size, float spacing) {
     float character_size = 1.0/16.0f;
     std::vector<float> vertexData;
     std::vector<float> texCoordData;
-    for (int i=0; i < text.size(); i++) {
+    for (int i=0; i < text.size(); ++i) {
         int spriteIndex = (int)text[i];
         float texture_x = (float)(spriteIndex % 16) / 16.0f;
         float texture_y = (float)(spriteIndex / 16) / 16.0f;
@@ -120,18 +58,13 @@ void DrawText(ShaderProgram &program, int fontTexture, std::string text, float s
             texture_x, texture_y + character_size,
         });
     }
-    for (int i=0; i < vertexData.size(); i++) {
-        std::cout << vertexData[i] << std::endl;
-    }
+    glVertexAttribPointer(texProgram.positionAttribute, 2, GL_FLOAT, false, 0, vertexData.data());
+    glVertexAttribPointer(texProgram.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoordData.data());
     texProgram.SetModelMatrix(modelMatrix);
     glEnableVertexAttribArray(texProgram.positionAttribute);
     glEnableVertexAttribArray(texProgram.texCoordAttribute);
-    glVertexAttribPointer(texProgram.positionAttribute, 2, GL_FLOAT, false, 0, vertexData.data());
-    glVertexAttribPointer(texProgram.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoordData.data());
     glBindTexture(GL_TEXTURE_2D, fontTexture);
-    glDrawArrays(GL_TRIANGLES, 0, text.size() * 6);
-    // draw this data (use the .data() method of std::vector to get pointer to data)
-    // draw this yourself, use text.size() * 6 or vertexData.size()/2 to get number of vertices
+    glDrawArrays(GL_TRIANGLES, 0, 6 * text.size());
 }
 
 GLuint LoadTexture(const char *filePath) {
@@ -150,6 +83,80 @@ GLuint LoadTexture(const char *filePath) {
     stbi_image_free(image);
     return retTexture;
 }
+
+
+// Game classes
+class Object {
+public:
+    Object(float x, float y, float width, float height)
+        : position(x, y, 0), size(width, height, 0) {}
+    void virtual draw(ShaderProgram &p) = 0;
+    glm::vec3 position;
+    glm::vec3 size;
+};
+
+class GameObject : public Object {
+public:
+    using Object::Object;
+    void draw(ShaderProgram &p) {
+        // Transforming matrix
+        float glX = ((position[0] / 960) * 2.666) - 1.333;
+        float glY = (((720 - position[1]) / 720) * 2.0) - 1.0;
+        float glWidth = (size[0] / 960) * 2.666;
+        float glHeight = (size[1] / 720) * 2.0;
+        glm::mat4 objectModelMatrix = glm::translate(modelMatrix, glm::vec3(glX, glY, 0.0));
+        objectModelMatrix = glm::scale(objectModelMatrix, glm::vec3(glWidth, glHeight, 1.0));
+        p.SetModelMatrix(objectModelMatrix);
+        
+        // Draw
+        float vertices[] = {0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, 0.5};
+        glVertexAttribPointer(p.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
+        glEnableVertexAttribArray(p.positionAttribute);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+    float velocityX = 0;
+    float velocityY = 0;
+};
+class Player : public GameObject {
+public:
+    using GameObject::GameObject;
+};
+
+class TextBox : public Object {
+public:
+    TextBox(float x, float y, float width, float height, std::string text)
+        : Object(x, y, width, height), text(text) {};
+    void draw(ShaderProgram &p) {
+        // Transforming matrix
+        float glX = ((position[0] / 960) * 2.666) - 1.333;
+        float glY = (((720 - position[1]) / 720) * 2.0) - 1.0;
+        float glWidth = (size[0] / 960) * 2.666;
+        float glHeight = (size[1] / 720) * 2.0;
+        glm::mat4 textBoxModelMatrix = glm::translate(modelMatrix, glm::vec3(glX, glY, 0.0));
+        textBoxModelMatrix = glm::scale(textBoxModelMatrix, glm::vec3(glWidth, glHeight, 1.0));
+        p.SetModelMatrix(textBoxModelMatrix);
+        // Draw
+        DrawText(p, font, text, 0.2, -0.1);
+    }
+    std::string text;
+};
+
+class TitleScreen {
+public:
+    TitleScreen()
+        : title(480, 200, 500, 100, "Space Invaders"), playButton(480, 400, 300, 100, "Play") {};
+    void render() {
+        title.draw(texProgram);
+        playButton.draw(texProgram);
+    }
+    TextBox title;
+    TextBox playButton;
+};
+
+class GameLevel {
+public:
+    
+};
 
 
 // Main function prototypes
@@ -223,18 +230,8 @@ void Render() {
     glClear(GL_COLOR_BUFFER_BIT);
     // Draw
     titleScreen.render();
-    DrawText(texProgram, font, "test", 0, 0.5);
+//    DrawText(texProgram, font, "test", 0.2, -0.1);
 
-    texProgram.SetModelMatrix(modelMatrix);
-    // Vertices & texture coordinates for texturing
-    float vertices[] = {0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, 0.5};
-    float texCoords[] = {1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0};
-    glEnableVertexAttribArray(texProgram.positionAttribute);
-    glEnableVertexAttribArray(texProgram.texCoordAttribute);
-    glVertexAttribPointer(texProgram.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
-    glVertexAttribPointer(texProgram.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoords);
-    glBindTexture(GL_TEXTURE_2D, font);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
     
     
     
