@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
     ShaderProgram program;
     program.Load(RESOURCE_FOLDER"vertex.glsl", RESOURCE_FOLDER"fragment.glsl");
     glUseProgram(program.programID);
-    
+
     // Texture shader
     ShaderProgram program_textured;
     program_textured.Load(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
