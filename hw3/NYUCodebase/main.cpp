@@ -28,8 +28,10 @@ ShaderProgram texProgram;
 bool gameDone = false;
 float lastFrameTicks = 0.0;
 const Uint8 *keys = SDL_GetKeyboardState(NULL);
-enum GameMode { TITLE_SCREEN, GAME_LEVEL };
 GLuint font;
+GLuint spriteSheet;
+enum GameMode { TITLE_SCREEN, GAME_LEVEL };
+GameMode mode;
 
 
 // Helper functions
@@ -58,13 +60,14 @@ void DrawText(ShaderProgram &program, int fontTexture, std::string text, float s
             texture_x, texture_y + character_size,
         });
     }
-    glVertexAttribPointer(texProgram.positionAttribute, 2, GL_FLOAT, false, 0, vertexData.data());
-    glVertexAttribPointer(texProgram.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoordData.data());
-    texProgram.SetModelMatrix(modelMatrix);
-    glEnableVertexAttribArray(texProgram.positionAttribute);
-    glEnableVertexAttribArray(texProgram.texCoordAttribute);
+    glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, vertexData.data());
+    glVertexAttribPointer(program.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoordData.data());
+    glEnableVertexAttribArray(program.positionAttribute);
+    glEnableVertexAttribArray(program.texCoordAttribute);
     glBindTexture(GL_TEXTURE_2D, fontTexture);
     glDrawArrays(GL_TRIANGLES, 0, 6 * text.size());
+    glDisableVertexAttribArray(program.positionAttribute);
+    glDisableVertexAttribArray(program.texCoordAttribute);
 }
 
 GLuint LoadTexture(const char *filePath) {
@@ -88,17 +91,16 @@ GLuint LoadTexture(const char *filePath) {
 // Game classes
 class Object {
 public:
-    Object(float x, float y, float width, float height)
-        : position(x, y, 0), size(width, height, 0) {}
-    void virtual draw(ShaderProgram &p) = 0;
+    Object(float x, float y)
+        : position(x, y, 0) {}
     glm::vec3 position;
-    glm::vec3 size;
 };
 
 class GameObject : public Object {
 public:
-    using Object::Object;
-    void draw(ShaderProgram &p) {
+    GameObject(float x, float y, float width, float height)
+    : Object(x, y), size(width, height, 0) {}
+    void draw(ShaderProgram &p, float texCoords[12]) {
         // Transforming matrix
         float glX = ((position[0] / 960) * 2.666) - 1.333;
         float glY = (((720 - position[1]) / 720) * 2.0) - 1.0;
@@ -107,55 +109,112 @@ public:
         glm::mat4 objectModelMatrix = glm::translate(modelMatrix, glm::vec3(glX, glY, 0.0));
         objectModelMatrix = glm::scale(objectModelMatrix, glm::vec3(glWidth, glHeight, 1.0));
         p.SetModelMatrix(objectModelMatrix);
-        
         // Draw
         float vertices[] = {0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, 0.5};
         glVertexAttribPointer(p.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
+        glVertexAttribPointer(p.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoords);
         glEnableVertexAttribArray(p.positionAttribute);
+        glEnableVertexAttribArray(p.texCoordAttribute);
+        glBindTexture(GL_TEXTURE_2D, spriteSheet);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        glDisableVertexAttribArray(p.positionAttribute);
+        glDisableVertexAttribArray(p.texCoordAttribute);
     }
-    float velocityX = 0;
-    float velocityY = 0;
+    glm::vec3 velocity;
+    glm::vec3 size;
 };
+
 class Player : public GameObject {
 public:
-    using GameObject::GameObject;
+    Player(float x, float y, float width, float height) : GameObject(x, y, width, height) {}
+    
+    float texCoords[12] = {310.0f/1024.0f, 941.0f/1024.0f, 211.0f/1024.0f, 1016.0f/1024.0f, 310.0f/1024.0f, 1016.0f/1024.0f, 211.0f/1024.0f, 941.0f/1024.0f, 211.0f/1024.0f, 1016.0f/1024.0f, 310.0f/1024.0f, 941.0f/1024.0f};
 };
 
 class TextBox : public Object {
 public:
-    TextBox(float x, float y, float width, float height, std::string text)
-        : Object(x, y, width, height), text(text) {};
+    TextBox(float x, float y, float fontSize, std::string text)
+        : Object(x, y), fontSize(fontSize), text(text) {};
     void draw(ShaderProgram &p) {
         // Transforming matrix
-        float glX = ((position[0] / 960) * 2.666) - 1.333;
-        float glY = (((720 - position[1]) / 720) * 2.0) - 1.0;
-        float glWidth = (size[0] / 960) * 2.666;
-        float glHeight = (size[1] / 720) * 2.0;
+        float glX = ((position[0] / 960) * 2.666) - 1.333 - (text.size() * fontSize)/4;
+        float glY = (((720 - position[1]) / 720) * 2.0) - 1.0 + fontSize/2;
         glm::mat4 textBoxModelMatrix = glm::translate(modelMatrix, glm::vec3(glX, glY, 0.0));
-        textBoxModelMatrix = glm::scale(textBoxModelMatrix, glm::vec3(glWidth, glHeight, 1.0));
         p.SetModelMatrix(textBoxModelMatrix);
         // Draw
-        DrawText(p, font, text, 0.2, -0.1);
+        DrawText(p, font, text, fontSize, -0.1);
     }
     std::string text;
+    float fontSize;
 };
 
 class TitleScreen {
 public:
     TitleScreen()
-        : title(480, 200, 500, 100, "Space Invaders"), playButton(480, 400, 300, 100, "Play") {};
+        : title(480, 250, 0.2, "Space Invaders"), playButton(480, 450, 0.2, "Play"), goToGameLevel(false) {};
+    void processEvents() {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) {
+                gameDone = true;
+            }
+        }
+        if (event.type == SDL_MOUSEBUTTONDOWN) {
+            if (event.button.button == SDL_BUTTON_LEFT) {
+                if (playButton.position[0] - 100 < event.button.x &&
+                    playButton.position[0] + 60 > event.button.x &&
+                    playButton.position[1] - 60 < event.button.y &&
+                    playButton.position[1] > event.button.y) {
+                        goToGameLevel = true;
+                }
+            }
+        }
+    }
+    void update() {
+        if (goToGameLevel) {
+            mode = GAME_LEVEL;
+            goToGameLevel = false;
+        }
+    }
     void render() {
         title.draw(texProgram);
         playButton.draw(texProgram);
     }
     TextBox title;
     TextBox playButton;
+    bool goToGameLevel;
 };
 
 class GameLevel {
 public:
-    
+    GameLevel()
+        : player(480, 660, 80, 80) {}
+    void processEvents() {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) {
+                gameDone = true;
+            }
+            // Player movement
+            if (keys[SDL_SCANCODE_RIGHT]) {
+                player.velocity[0] = 300;
+            } else if (keys[SDL_SCANCODE_LEFT]) {
+                player.velocity[0] = -300;
+            } else {
+                player.velocity[0] = 0;
+            }
+        }
+    }
+    void update(float elapsed) {
+        if (0 < player.position[0] - player.size[0] && player.position[0] + player.size[0] < 960) {
+            
+            player.position[0] += player.velocity[0] * elapsed;
+        }
+    }
+    void render() {
+        player.draw(texProgram, player.texCoords);
+    }
+    Player player;
 };
 
 
@@ -167,6 +226,7 @@ void Render();
 
 // In-game global variables
 TitleScreen titleScreen;
+GameLevel gameLevel;
 
 // Main
 int main(int argc, char *argv[]) {
@@ -206,14 +266,17 @@ void Setup() {
     texProgram.SetViewMatrix(viewMatrix);
     // Textures
     font = LoadTexture(RESOURCE_FOLDER"assets/font.png");
+    spriteSheet = LoadTexture(RESOURCE_FOLDER"assets/spritesheet.png");
 }
 
 void ProcessEvents() {
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) {
-            gameDone = true;
-        }
+    switch (mode) {
+        case TITLE_SCREEN:
+            titleScreen.processEvents();
+            break;
+        case GAME_LEVEL:
+            gameLevel.processEvents();
+            break;
     }
 }
 
@@ -222,23 +285,28 @@ void Update() {
     float ticks = SDL_GetTicks()/1000.0;
     float elapsed = ticks - lastFrameTicks;
     lastFrameTicks = ticks;
+    switch (mode) {
+        case TITLE_SCREEN:
+            titleScreen.update();
+            break;
+        case GAME_LEVEL:
+            gameLevel.update(elapsed);
+            break;
+    }
 }
 
 void Render() {
     // Clearing screen
     glClearColor(0.1, 0.1, 0.1, 1.0);
     glClear(GL_COLOR_BUFFER_BIT);
-    // Draw
-    titleScreen.render();
-//    DrawText(texProgram, font, "test", 0.2, -0.1);
-
-    
-    
-    
-    // glDisables
-    glDisableVertexAttribArray(program.positionAttribute);
-    glDisableVertexAttribArray(texProgram.positionAttribute);
-    glDisableVertexAttribArray(texProgram.texCoordAttribute);
+    switch (mode) {
+        case TITLE_SCREEN:
+            titleScreen.render();
+            break;
+        case GAME_LEVEL:
+            gameLevel.render();
+            break;
+    }
     // Display
     SDL_GL_SwapWindow(displayWindow);
 }
