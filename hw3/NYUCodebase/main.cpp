@@ -32,6 +32,7 @@ GLuint font;
 GLuint spriteSheet;
 enum GameMode { TITLE_SCREEN, GAME_LEVEL };
 GameMode mode;
+#define MAX_BULLETS 30
 
 
 // Helper functions
@@ -91,13 +92,17 @@ GLuint LoadTexture(const char *filePath) {
 // Game classes
 class Object {
 public:
+    glm::vec3 position;
+
     Object(float x, float y)
         : position(x, y, 0) {}
-    glm::vec3 position;
 };
 
 class GameObject : public Object {
 public:
+    glm::vec3 velocity;
+    glm::vec3 size;
+
     GameObject(float x, float y, float width, float height)
     : Object(x, y), size(width, height, 0) {}
     void draw(ShaderProgram &p, float texCoords[12]) {
@@ -120,19 +125,55 @@ public:
         glDisableVertexAttribArray(p.positionAttribute);
         glDisableVertexAttribArray(p.texCoordAttribute);
     }
-    glm::vec3 velocity;
-    glm::vec3 size;
+    bool checkCollision(GameObject obj) {
+        if (abs(position[0] - obj.position[0]) < (size[0] + obj.size[0]) / 2 &&
+            abs(position[1] - obj.position[1]) < (size[1] + obj.size[1]) / 2) {
+            return true;
+        }
+        return false;
+    }
 };
 
 class Player : public GameObject {
 public:
-    Player(float x, float y, float width, float height) : GameObject(x, y, width, height) {}
+    Player() : GameObject(480, 660, 70, 70) {}
     
     float texCoords[12] = {310.0f/1024.0f, 941.0f/1024.0f, 211.0f/1024.0f, 1016.0f/1024.0f, 310.0f/1024.0f, 1016.0f/1024.0f, 211.0f/1024.0f, 941.0f/1024.0f, 211.0f/1024.0f, 1016.0f/1024.0f, 310.0f/1024.0f, 941.0f/1024.0f};
+    
+    void reset() {
+        position[0] = 480;
+        position[1] = 660;
+        size[0] = 70;
+        size[1] = 70;
+    }
+};
+
+class Bullet : public GameObject {
+public:
+    Bullet() : GameObject(-3000, 0, 10, 40) {}
+    
+    float texCoords[12] = {865.0f/1024.0f, 983.0f/1024.0f, 856.0f/1024.0f, 1020.0f/1024.0f, 865.0f/1024.0f, 1020.0f/1024.0f, 856.0f/1024.0f, 983.0f/1024.0f, 856.0f/1024.0f, 1020.0f/1024.0f, 865.0f/1024.0f, 983.0f/1024.0f};
+    
+    void reset() {
+        position[0] = -3000;
+        position[1] = 0;
+        velocity[0] = 0;
+        velocity[1] = 0;
+    }
+};
+
+class Enemy : public GameObject {
+public:
+    Enemy(float x, float y, float width, float height) : GameObject(x, y, width, height) {}
+    
+    float texCoords[12] = {535.0f/1024.0f, 0.0f/1024.0f, 444.0f/1024.0f, 91.0f/1024.0f, 535.0f/1024.0f, 91.0f/1024.0f, 444.0f/1024.0f, 0.0f/1024.0f, 444.0f/1024.0f, 91.0f/1024.0f, 535.0f/1024.0f, 0.0f/1024.0f};
 };
 
 class TextBox : public Object {
 public:
+    std::string text;
+    float fontSize;
+
     TextBox(float x, float y, float fontSize, std::string text)
         : Object(x, y), fontSize(fontSize), text(text) {};
     void draw(ShaderProgram &p) {
@@ -144,12 +185,14 @@ public:
         // Draw
         DrawText(p, font, text, fontSize, -0.1);
     }
-    std::string text;
-    float fontSize;
 };
 
 class TitleScreen {
 public:
+    TextBox title;
+    TextBox playButton;
+    bool goToGameLevel;
+
     TitleScreen()
         : title(480, 250, 0.2, "Space Invaders"), playButton(480, 450, 0.2, "Play"), goToGameLevel(false) {};
     void processEvents() {
@@ -159,15 +202,18 @@ public:
                 gameDone = true;
             }
         }
-        if (event.type == SDL_MOUSEBUTTONDOWN) {
-            if (event.button.button == SDL_BUTTON_LEFT) {
-                if (playButton.position[0] - 100 < event.button.x &&
-                    playButton.position[0] + 60 > event.button.x &&
-                    playButton.position[1] - 60 < event.button.y &&
-                    playButton.position[1] > event.button.y) {
-                        goToGameLevel = true;
-                }
+        int x;
+        int y;
+        SDL_GetMouseState(&x, &y);
+        if (playButton.position[0] - 100 < x && playButton.position[0] + 60 > x &&
+            playButton.position[1] - 60 < y && playButton.position[1] > y) {
+            // Enlarge when mouse hovers
+            playButton.fontSize = 0.23;
+            if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
+                goToGameLevel = true;
             }
+        } else {
+            playButton.fontSize = 0.2;
         }
     }
     void update() {
@@ -180,53 +226,107 @@ public:
         title.draw(texProgram);
         playButton.draw(texProgram);
     }
-    TextBox title;
-    TextBox playButton;
-    bool goToGameLevel;
 };
 
 class GameLevel {
 public:
-    GameLevel()
-        : player(480, 660, 80, 80) {}
+    int bulletIndex = 0;
+    Bullet bullets[MAX_BULLETS];
+    int cooldown = 15;
+    std::vector<Enemy> enemies;
+    Player player;
+
+    GameLevel() {
+        for (int i = 0; i < MAX_BULLETS; ++i) {
+            bullets[i] = Bullet();
+        }
+        for (int i = 0; i < 36; ++i) {
+            enemies.push_back(Enemy(90 * (i % 6 + 1) + 160, 70 * (i / 6 + 1) - 20, 60, 60));
+        }
+    }
     void processEvents() {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) {
                 gameDone = true;
             }
+            // Bullets
+            if (keys[SDL_SCANCODE_SPACE] && cooldown <= 0) {
+                shootBullet();
+                cooldown = 15;
+            }
             // Player movement
             if (keys[SDL_SCANCODE_RIGHT]) {
-                player.velocity[0] = 300;
+                player.velocity[0] = 400;
             } else if (keys[SDL_SCANCODE_LEFT]) {
-                player.velocity[0] = -300;
+                player.velocity[0] = -400;
             } else {
                 player.velocity[0] = 0;
             }
         }
     }
     void update(float elapsed) {
-        if (0 < player.position[0] - player.size[0] && player.position[0] + player.size[0] < 960) {
-            
+        if (0 < (player.position[0] - player.size[0] + player.velocity[0] * elapsed) && (player.position[0] + player.size[0] + player.velocity[0] * elapsed) < 960) {
             player.position[0] += player.velocity[0] * elapsed;
         }
+        for (int i = 0; i < MAX_BULLETS; ++i) {
+            if (-200 < bullets[i].position[0] && bullets[i].position[0] < 1160 &&
+                -200 < bullets[i].position[1] && bullets[i].position[1] < 920) {
+                bullets[i].position[1] += bullets[i].velocity[1] * elapsed;
+                for (int j = 0; j < enemies.size(); ++j) {
+                    if (bullets[i].checkCollision(enemies[j])) {
+                        enemies.erase(enemies.begin() + j);
+                        bullets[i].reset();
+                    }
+                }
+            } else {
+                bullets[i].reset();
+            }
+        }
+        if (cooldown > 0) { cooldown -= elapsed; }  // Cooldown working weirdly
+        if (enemies.empty()) { reset(); mode = TITLE_SCREEN; }
     }
     void render() {
         player.draw(texProgram, player.texCoords);
+        for (int i = 0; i < MAX_BULLETS; ++i) {
+            bullets[i].draw(texProgram, bullets[i].texCoords);
+        }
+        for (int i = 0; i < enemies.size(); ++i) {
+            enemies[i].draw(texProgram, enemies[i].texCoords);
+        }
     }
-    Player player;
+    void shootBullet() {
+        bullets[bulletIndex].position[0] = player.position[0];
+        bullets[bulletIndex].position[1] = player.position[1];
+        bullets[bulletIndex].velocity[1] = -800;
+        bulletIndex++;
+        if (bulletIndex > MAX_BULLETS-1) {
+            bulletIndex = 0;
+        }
+    }
+    void reset() {
+        enemies.clear();
+        for (int i = 0; i < 36; ++i) {
+            enemies.push_back(Enemy(90 * (i % 6 + 1) + 160, 70 * (i / 6 + 1) - 20, 60, 60));
+        }
+        for (int i = 0; i < MAX_BULLETS; ++i) {
+            bullets[i].reset();
+        }
+        player.reset();
+    }
 };
 
 
 // Main function prototypes
 void Setup();
 void ProcessEvents();
-void Update();
+void Update(float elapsed);
 void Render();
 
 // In-game global variables
 TitleScreen titleScreen;
 GameLevel gameLevel;
+
 
 // Main
 int main(int argc, char *argv[]) {
@@ -235,8 +335,12 @@ int main(int argc, char *argv[]) {
     glewInit();
 #endif
     while (!gameDone) {
+        // Update ticks
+        float ticks = SDL_GetTicks()/1000.0;
+        float elapsed = ticks - lastFrameTicks;
+        lastFrameTicks = ticks;
         ProcessEvents();
-        Update();
+        Update(elapsed);
         Render();
     }
     SDL_Quit();
@@ -280,11 +384,7 @@ void ProcessEvents() {
     }
 }
 
-void Update() {
-    // Update ticks
-    float ticks = SDL_GetTicks()/1000.0;
-    float elapsed = ticks - lastFrameTicks;
-    lastFrameTicks = ticks;
+void Update(float elapsed) {
     switch (mode) {
         case TITLE_SCREEN:
             titleScreen.update();
