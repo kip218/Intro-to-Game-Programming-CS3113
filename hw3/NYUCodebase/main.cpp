@@ -32,6 +32,8 @@ GLuint font;
 GLuint spriteSheet;
 enum GameMode { TITLE_SCREEN, GAME_LEVEL };
 GameMode mode;
+enum EnemyState { MOVE_LEFT, MOVE_RIGHT, MOVE_DOWN };
+EnemyState state;
 #define MAX_BULLETS 30
 
 
@@ -234,6 +236,8 @@ public:
     Bullet bullets[MAX_BULLETS];
     int cooldown = 15;
     std::vector<Enemy> enemies;
+    float maxMoveDownTime = 0.5;
+    bool goLeft = true;
     Player player;
 
     GameLevel() {
@@ -242,6 +246,7 @@ public:
         }
         for (int i = 0; i < 36; ++i) {
             enemies.push_back(Enemy(90 * (i % 6 + 1) + 160, 70 * (i / 6 + 1) - 20, 60, 60));
+            enemies[i].velocity[0] = -150;
         }
     }
     void processEvents() {
@@ -266,9 +271,20 @@ public:
         }
     }
     void update(float elapsed) {
+        // Check game over
+        for (int i = 0; i < enemies.size(); ++i) {
+            if (enemies[i].checkCollision(player) ||
+                enemies[i].position[1] + enemies[i].size[1] >= 720) {
+                std::cout << "Game Over" << std::endl;
+                reset();
+                mode = TITLE_SCREEN;
+            }
+        }
+        // Player
         if (0 < (player.position[0] - player.size[0] + player.velocity[0] * elapsed) && (player.position[0] + player.size[0] + player.velocity[0] * elapsed) < 960) {
             player.position[0] += player.velocity[0] * elapsed;
         }
+        // Bullets
         for (int i = 0; i < MAX_BULLETS; ++i) {
             if (-200 < bullets[i].position[0] && bullets[i].position[0] < 1160 &&
                 -200 < bullets[i].position[1] && bullets[i].position[1] < 920) {
@@ -283,8 +299,69 @@ public:
                 bullets[i].reset();
             }
         }
+        // Enemies
+        switch (state) {
+            case MOVE_LEFT:
+                for (int i = 0; i < enemies.size(); ++i) {
+                    enemies[i].velocity[0] = -140;
+                    enemies[i].velocity[1] = 0;
+                    if (enemies[i].position[0] - enemies[i].size[0] <= 0) {
+                        goLeft = false;
+                        state = MOVE_DOWN;
+                    }
+                }
+                break;
+            case MOVE_RIGHT:
+                for (int i = 0; i < enemies.size(); ++i) {
+                    enemies[i].velocity[0] = 140;
+                    enemies[i].velocity[1] = 0;
+                    if (enemies[i].position[0] + enemies[i].size[0] >= 960) {
+                        goLeft = true;
+                        state = MOVE_DOWN;
+                    }
+                }
+                break;
+            case MOVE_DOWN:
+                maxMoveDownTime = maxMoveDownTime - elapsed;
+                for (int i = 0; i < enemies.size(); ++i) {
+                    enemies[i].velocity[0] = 0;
+                    enemies[i].velocity[1] = 100;
+                    if (maxMoveDownTime < 0) {
+                        if (goLeft) {
+                            state = MOVE_LEFT;
+                        } else {
+                            state = MOVE_RIGHT;
+                        }
+                        maxMoveDownTime = 0.5;
+                    }
+                }
+                break;
+        }
+        for (int i = 0; i < enemies.size(); ++i) {
+            if (enemies[i].position[0] - enemies[i].size[0] <= 0) {
+                for (int j = 0; j < enemies.size(); ++j) {
+                    enemies[j].velocity[0] = 150;
+                    enemies[j].velocity[1] = 50;
+                }
+                break;
+            } else if (enemies[i].position[0] + enemies[i].size[0] >= 960) {
+                for (int j = 0; j < enemies.size(); ++j) {
+                    enemies[j].velocity[0] = -150;
+                    enemies[j].velocity[1] = 50;
+                }
+                break;
+            }
+        }
+        for (int i = 0; i < enemies.size(); ++i) {
+            enemies[i].position[0] += enemies[i].velocity[0] * elapsed;
+            enemies[i].position[1] += enemies[i].velocity[1] * elapsed;
+        }
         if (cooldown > 0) { cooldown -= elapsed; }  // Cooldown working weirdly
-        if (enemies.empty()) { reset(); mode = TITLE_SCREEN; }
+        if (enemies.empty()) {
+            std::cout << "You Win!" << std::endl;
+            reset();
+            mode = TITLE_SCREEN;
+        }
     }
     void render() {
         player.draw(texProgram, player.texCoords);
@@ -308,6 +385,7 @@ public:
         enemies.clear();
         for (int i = 0; i < 36; ++i) {
             enemies.push_back(Enemy(90 * (i % 6 + 1) + 160, 70 * (i / 6 + 1) - 20, 60, 60));
+            enemies[i].velocity[0] = -150;
         }
         for (int i = 0; i < MAX_BULLETS; ++i) {
             bullets[i].reset();
