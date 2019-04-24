@@ -27,46 +27,10 @@ bool gameDone = false;
 float lastFrameTicks = 0.0;
 const Uint8 *keys = SDL_GetKeyboardState(NULL);
 
-class Object {
-public:
-    Object(float pixelX, float pixelY, float velocityX, float velocityY, float pixelWidth,
-           float pixelHeight, float colorR, float colorG, float colorB)
-    : pixelX(pixelX), pixelY(pixelY), velocityX(velocityX), velocityY(velocityY), pixelWidth(pixelWidth),
-    pixelHeight(pixelHeight), colorR(colorR), colorG(colorG), colorB(colorB) {}
-    
-    void draw(ShaderProgram &p) {
-        // Transforming matrix
-        float unitX = ((pixelX / 960) * 2.666) - 1.333;
-        float unitY = (((720 - pixelY) / 720) * 2.0) - 1.0;
-        float width = (pixelWidth / 960) * 2.666;
-        float height = (pixelHeight / 720) * 2.0;
-        glm::mat4 objectModelMatrix = glm::translate(modelMatrix, glm::vec3(unitX, unitY, 0.0));
-        objectModelMatrix = glm::scale(objectModelMatrix, glm::vec3(width, height, 1.0));
-        p.SetModelMatrix(objectModelMatrix);
-        
-        // Draw
-        float vertices[] = {0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, 0.5};
-        glVertexAttribPointer(p.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
-        glEnableVertexAttribArray(p.positionAttribute);
-        p.SetColor(colorR, colorG, colorB, 1.0f);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-    }
-    
-    float pixelX;
-    float pixelY;
-    float velocityX;
-    float velocityY;
-    float pixelWidth;
-    float pixelHeight;
-    float colorR;
-    float colorG;
-    float colorB;
-};
-
 // Helper functions
 void Setup() {
     SDL_Init(SDL_INIT_VIDEO);
-    displayWindow = SDL_CreateWindow("Pong", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 960, 720, SDL_WINDOW_OPENGL);
+    displayWindow = SDL_CreateWindow("Platformer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 960, 720, SDL_WINDOW_OPENGL);
     SDL_GLContext context = SDL_GL_CreateContext(displayWindow);
     SDL_GL_MakeCurrent(displayWindow, context);
     glViewport(0, 0, 960, 720);
@@ -100,9 +64,7 @@ void Render() {
     glClear(GL_COLOR_BUFFER_BIT);
     // Draw
 
-    
-    // glDisables
-    glDisableVertexAttribArray(program.positionAttribute);
+
     // Display
     SDL_GL_SwapWindow(displayWindow);
 }
