@@ -34,8 +34,8 @@ FlareMap map;
 GLuint mapSpriteID;
 std::vector<float> tileMapVertices;
 std::vector<float> tileMapTexCoords;
-glm::vec3 gravity(0, 0.3, 0);
-glm::vec3 friction(3.5, 0, 0);
+glm::vec3 gravity(0, -7.0, 0);
+glm::vec3 friction(7.0, 0, 0);
 
 
 GLuint LoadTexture(const char *filePath) {
@@ -111,12 +111,15 @@ public:
         sprite.draw(p, position, size);
     }
     void update(float elapsed) {
-        velocity.x = lerp(velocity.x, 0.0f, elapsed * friction.x);
-        velocity.y = lerp(velocity.y, 0.0f, elapsed * friction.y);
-//        velocity.y += gravity.y * elapsed;
+        // update movement
+        // friction only when on ground
+        if (collidedBottom) {
+            velocity.x = lerp(velocity.x, 0.0f, elapsed * friction.x);
+            velocity.y = lerp(velocity.y, 0.0f, elapsed * friction.y);
+        }
+        velocity.y += gravity.y * elapsed;
         velocity += acceleration * elapsed;
         position += velocity * elapsed;
-        
         
         collidedTop = false;
         collidedBottom = false;
@@ -124,8 +127,47 @@ public:
         collidedRight = false;
         int gridX;
         int gridY;
-        
-        
+
+        // limit to tilemap
+        worldToTileCoordinates(position.x, position.y, &gridX, &gridY);
+        if (0 < gridX && gridX < 50 && 0 < gridY && gridY < 25) {
+            // might need to add more collision points
+            // check bottom collision
+            worldToTileCoordinates(position.x, position.y - size.y/2, &gridX, &gridY);
+            if (map.mapData[gridY][gridX]+1 == 4 || map.mapData[gridY][gridX]+1 == 7 || map.mapData[gridY][gridX]+1 == 18 || map.mapData[gridY][gridX]+1 == 34) {
+                position.y += (-TILE_SIZE * gridY) - (position.y - size.y/2);
+                velocity.y = 0;
+                collidedBottom = true;
+            }
+            // check top collision
+            worldToTileCoordinates(position.x, position.y + size.y/2, &gridX, &gridY);
+            if (map.mapData[gridY][gridX]+1 == 4 || map.mapData[gridY][gridX]+1 == 7 || map.mapData[gridY][gridX]+1 == 18 || map.mapData[gridY][gridX]+1 == 34) {
+                position.y += (-TILE_SIZE * gridY - TILE_SIZE) - (position.y + size.y/2);
+                velocity.y = 0;
+                collidedTop = true;
+            }
+            // check left collision
+            worldToTileCoordinates(position.x - size.x/2, position.y, &gridX, &gridY);
+            if (map.mapData[gridY][gridX]+1 == 4 || map.mapData[gridY][gridX]+1 == 7 || map.mapData[gridY][gridX]+1 == 18 || map.mapData[gridY][gridX]+1 == 34) {
+                position.x += (TILE_SIZE * gridX + TILE_SIZE) - (position.x - size.x/2);
+                velocity.x = 0;
+                collidedLeft = true;
+            }
+            // check right collision
+            worldToTileCoordinates(position.x + size.x/2, position.y, &gridX, &gridY);
+            if (map.mapData[gridY][gridX]+1 == 4 || map.mapData[gridY][gridX]+1 == 7 || map.mapData[gridY][gridX]+1 == 18 || map.mapData[gridY][gridX]+1 == 34) {
+                position.x += (TILE_SIZE * gridX) - (position.x + size.x/2);
+                velocity.x = 0;
+                collidedLeft = true;
+            }
+        }
+    }
+    bool isColliding(Entity entity) const {
+        if (fabs(position.x - entity.position.x) < (size.x/2 + entity.size.x/2) &&
+            fabs(position.y - entity.position.y) < (size.y/2 + entity.size.y/2)) {
+            return true;
+        }
+        return false;
     }
 
     glm::vec3 position;
@@ -144,15 +186,22 @@ public:
 class Level {
 public:
     Level()
-        : player(0.7, -2.0, 0.2, 0.2) {}
+        : player(0.7, -1.9, 0.2, 0.2), key(4.5, -0.3, 0.2, 0.2){}
     void draw(ShaderProgram &p) const {
         player.draw(p);
+        key.draw(p);
     }
     void update(float elapsed) {
         player.update(elapsed);
+        if (player.isColliding(key)) {
+            key.position.x = -1000;
+            key.position.y = -1000;
+            std::cout << "You got the key!" << std::endl;
+        }
     }
     
     Entity player;
+    Entity key;
 };
 
 Level level;
@@ -174,8 +223,10 @@ void Setup() {
 
     map.Load(RESOURCE_FOLDER"tileMap.txt");
     mapSpriteID = LoadTexture(RESOURCE_FOLDER"mapSprite.png");
+    level.key.sprite = SheetSprite(mapSpriteID, 86, 16, 8);
     GLuint dinoSpriteID = LoadTexture(RESOURCE_FOLDER"dinoSprite.png");
     level.player.sprite = SheetSprite(dinoSpriteID, 0, 24, 1);
+    
 
     for (int y=0; y < map.mapHeight; y++) {
         for (int x=0; x < map.mapWidth; x++) {
@@ -212,11 +263,14 @@ void ProcessEvents() {
         }
         // Player movement
         if (keys[SDL_SCANCODE_RIGHT]) {
-            level.player.acceleration.x = 4.5;
+            level.player.acceleration.x = 4.0;
         } else if (keys[SDL_SCANCODE_LEFT]) {
-            level.player.acceleration.x = -4.5;
+            level.player.acceleration.x = -4.0;
         } else {
             level.player.acceleration.x = 0;
+        }
+        if (keys[SDL_SCANCODE_UP] && level.player.collidedBottom) {
+            level.player.velocity.y = 2.5;
         }
     }
 }
@@ -247,6 +301,7 @@ void Render() {
     glDisableVertexAttribArray(program.texCoordAttribute);
     // Display
     SDL_GL_SwapWindow(displayWindow);
+    glFlush();
 }
 
 // Main
@@ -269,6 +324,8 @@ int main(int argc, char *argv[]) {
             Update(FIXED_TIMESTEP);
             elapsed -= FIXED_TIMESTEP;
         }
+        // rendering causes a lot of fps drops... why?
+        // how to draw tilemap without fps drops?
         Render();
     }
     SDL_Quit();
