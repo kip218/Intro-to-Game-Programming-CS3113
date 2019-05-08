@@ -292,11 +292,9 @@ void Render() {
     glEnableVertexAttribArray(program.positionAttribute);
     glEnableVertexAttribArray(program.texCoordAttribute);
     glBindTexture(GL_TEXTURE_2D, mapSpriteID);
-    for (int i = 0; i < tileMapVertices.size(); i++) {
-        glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, tileMapVertices.data());
-        glVertexAttribPointer(program.texCoordAttribute, 2, GL_FLOAT, false, 0, tileMapTexCoords.data());
-        glDrawArrays(GL_TRIANGLES, 0, tileMapVertices.size()/2);
-    }
+    glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, tileMapVertices.data());
+    glVertexAttribPointer(program.texCoordAttribute, 2, GL_FLOAT, false, 0, tileMapTexCoords.data());
+    glDrawArrays(GL_TRIANGLES, 0, tileMapVertices.size()/2);
     glDisableVertexAttribArray(program.positionAttribute);
     glDisableVertexAttribArray(program.texCoordAttribute);
     // Display
