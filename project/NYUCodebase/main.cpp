@@ -39,9 +39,10 @@ const Uint8 *keys = SDL_GetKeyboardState(NULL);
 class Entity {
 public:
     Entity(float x, float y, float width, float height, float r, float g, float b)
-    : position(x, y, 0), size(width, height, 1), color(r, g, b) {}
+    : position(x, y, 0), size(width, height, 1), color(r, g, b), angle(0) {}
     void draw(ShaderProgram &p) const {
         glm::mat4 entityModelMatrix = glm::translate(modelMatrix, position);
+        entityModelMatrix = glm::rotate(entityModelMatrix, angle * (3.1415926f / 180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         entityModelMatrix = glm::scale(entityModelMatrix, size);
         p.SetModelMatrix(entityModelMatrix);
         float vertices[] = {-0.5, 0.5, -0.5, -0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, 0.5, -0.5};
@@ -55,12 +56,13 @@ public:
     glm::vec3 position;
     glm::vec3 size;
     glm::vec3 color;
+    float angle;
 };
 
 class MovingEntity : public Entity {
 public:
-    MovingEntity(float x, float y, float width, float height, float r, float g, float b)
-        : Entity(x, y, width, height, r, g, b), velocity(0, 0, 0), acceleration(0, 0, 0) {}
+    MovingEntity(float x, float y, float width, float height, float r, float g, float b, float velocityX, float velocityY)
+        : Entity(x, y, width, height, r, g, b), velocity(velocityX, velocityY, 0), acceleration(0, 0, 0) {}
     void update(float elapsed, const std::vector<Entity> &platforms, const std::vector<Entity> &obstacles) {
         velocity.y += gravity.y * elapsed;
         velocity += acceleration * elapsed;
@@ -77,18 +79,15 @@ public:
         position.y += velocity.y * elapsed;
         adjustCollisionsY(platforms);
         adjustCollisionsY(obstacles);
+        if (!collidedBottom) {
+            angle += -15;
+        } else {
+            angle = 0;
+        }
     }
     void process(const Uint8 *keys) {
         if (keys[SDL_SCANCODE_SPACE] && collidedBottom) {
             velocity.y = 1.25;
-        }
-
-        if (keys[SDL_SCANCODE_RIGHT]) {
-            velocity.x = 0.5;
-        } else if (keys[SDL_SCANCODE_LEFT]) {
-            velocity.x = -0.5;
-        } else {
-            velocity.x = 0;
         }
     }
     bool isColliding(Entity entity) const {
@@ -109,7 +108,6 @@ public:
                     position.x += (penetration + 0.0001);
                     collidedLeft = true;
                 }
-                velocity.x = 0;
             }
         }
     }
@@ -124,7 +122,6 @@ public:
                     position.y += (penetration + 0.0001);
                     collidedBottom = true;
                 }
-                velocity.y = 0;
             }
         }
     }
@@ -155,7 +152,7 @@ public:
 
 class Level {
 public:
-    Level() : player(0, 1.0, 0.1, 0.1, 0.75, 0.33, 0.33), camera(0, 0, 3.2, 2.0, 0.25, 0) {
+    Level() : player(0, 1.0, 0.1, 0.1, 0.75, 0.33, 0.33, 0.3, 0), camera(0, 0, 3.2, 2.0, 0.3, 0) {
         // background panels
         background.push_back(Entity(-1.8, 0, 0.4, 2.0, 0.26, 0.26, 0.26));
         background.push_back(Entity(-1.4, 0, 0.4, 2.0, 0.4, 0.4, 0.4));
