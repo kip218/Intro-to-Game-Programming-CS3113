@@ -118,6 +118,7 @@ public:
 
 class Particle {
 public:
+    Particle(float x, float y) : position(x, y, 0), velocity(0, 0.1, 0) {}
     glm::vec3 position;
     glm::vec3 velocity;
     float lifetime;
@@ -127,7 +128,7 @@ class ParticleEmitter {
 public:
     ParticleEmitter(unsigned int particleCount) {
         for (int i = 0; i < particleCount; i++) {
-            particles.push_back(Particle());
+            particles.push_back(Particle(0, 0));
         }
     }
     void update(float elapsed) {
@@ -192,7 +193,7 @@ public:
     Player(float x, float y, float width, float height, float r, float g, float b, float a, float velocityX, float velocityY)
         : Entity(x, y, width, height, r, g, b, a), velocity(velocityX, velocityY, 0),
           acceleration(0, 0, 0), angleVelocity(0) {}
-    void update(float elapsed, const std::vector<Entity> &platforms, const std::vector<Entity> &obstacles) {
+    void update(float elapsed, const std::vector<Entity> &platforms, const std::vector<Entity> &obstacles, Player &player) {
         velocity.y += gravity.y * elapsed;
         velocity += acceleration * elapsed;
         // collision bools
@@ -204,10 +205,32 @@ public:
         position.x += velocity.x * elapsed;
         adjustCollisionsX(platforms);
         adjustCollisionsX(obstacles);
+        if (isColliding(player)) {
+            float penetration = fabs(fabs(position.x - player.position.x) - fabs(size.x/2 + player.size.x/2));
+            if (position.x < player.position.x) {
+                position.x -= (penetration + 0.0001);
+                collidedRight = true;
+            } else {
+                position.x += (penetration + 0.0001);
+                collidedLeft = true;
+            }
+            velocity.x = 0;
+        }
         // check y collision
         position.y += velocity.y * elapsed;
         adjustCollisionsY(platforms);
         adjustCollisionsY(obstacles);
+        if (isColliding(player)) {
+            float penetration = fabs(fabs(position.y - player.position.y) - fabs(size.y/2 + player.size.y/2));
+            if (position.y < player.position.y) {
+                position.y -= (penetration + 0.0001);
+                collidedTop = true;
+            } else {
+                position.y += (penetration + 0.0001);
+                collidedBottom = true;
+            }
+            velocity.y = 0;
+        }
         // rotation
         angle += angleVelocity * elapsed;
         if (collidedBottom) {
@@ -307,7 +330,7 @@ public:
         : player1(0, 1.0, 0.099, 0.099, 0.75, 0.33, 0.33, 0.8, 0.3, 0),
           player2(0, 1.0, 0.099, 0.099, 0.33, 0.33, 0.75, 0.8, 0.3, 0),
           camera(0, 0, 3.2, 2.0, 0.3, 0),
-          paused(false), escPressed(false), goToMenu(false), restart(false) {
+          paused(false), escPressed(false), goToMenu(false), restart(false), gameOver(false) {
               // player key bindings
               player1.upKey = SDL_SCANCODE_UP;
               player1.rightKey = SDL_SCANCODE_RIGHT;
@@ -334,14 +357,9 @@ public:
               left_platform_i = 0;
               right_platform_i = platforms.size() - 1;
               // obstacles
-              obstacles.push_back(Entity(4.0, -0.45, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
-              obstacles.push_back(Entity(4.1, -0.35, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
-              obstacles.push_back(Entity(4.2, -0.25, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
-              obstacles.push_back(Entity(4.3, -0.15, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
-              obstacles.push_back(Entity(4.4, -0.25, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
-              obstacles.push_back(Entity(4.5, -0.35, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
-              left_obstacle_i = 0;
-              right_obstacle_i = obstacles.size() - 1;
+              for (int i=0; i < 45; i++) {
+                  obstacles.push_back(Entity(-10, -0.45, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
+              }
     }
     void render(ShaderProgram &p, ShaderProgram &pTex) const {
         camera.setViewMatrix(p);
@@ -356,10 +374,8 @@ public:
         for (const Entity &obstacle : obstacles) {
             obstacle.draw(p);
         }
-        ParticleEmitter particler(15);
-        particler.render(p);
         if (paused) {
-            Entity shade(camera.position.x, camera.position.y, 3.2, 2.0, 0.2, 0.2, 0.2, 0.3);
+            Entity shade(camera.position.x, camera.position.y, 3.2, 2.0, 0.2, 0.2, 0.2, 0.4);
             TextBox pause(-0.45, 0.4, 0.18, "Paused");
             TextBox resume(-0.504, 0.0, 0.05, "Press space to resume");
             TextBox restart(-0.418, -0.15, 0.05, "Press R to restart");
@@ -369,32 +385,55 @@ public:
             resume.draw(pTex);
             restart.draw(pTex);
             quit.draw(pTex);
+        } else if (gameOver) {
+            Entity shade(camera.position.x, camera.position.y, 3.2, 2.0, 0.2, 0.2, 0.2, 0.4);
+            TextBox pause(-0.66, 0.4, 0.18, "Game Over");
+            TextBox restart(-0.418, -0.10, 0.05, "Press R to restart");
+            TextBox quit(-0.66, -0.25, 0.05, "Press Q to quit to main menu");
+            shade.draw(p);
+            pause.draw(pTex);
+            restart.draw(pTex);
+            quit.draw(pTex);
         }
     }
     void update(float elapsed, GameMode &mode) {
         if (goToMenu) { mode = MENU; goToMenu = false; reset(); return; }
         if (restart) { restart = false; reset(); return; }
-        if (!paused) {
+        if (!paused && !gameOver) {
             camera.move(elapsed);
-            player1.update(elapsed, platforms, obstacles);
-            player2.update(elapsed, platforms, obstacles);
+            player1.update(elapsed, platforms, obstacles, player2);
+            player2.update(elapsed, platforms, obstacles, player1);
             // consistent map generation
             generateMap(background, left_panel_i, right_panel_i);
             generateMap(platforms, left_platform_i, right_platform_i);
-            generateMap(obstacles, left_obstacle_i, right_obstacle_i);
+            // obstacle generation
+            generateObstacles(obstacles);
+        }
+        if (player1.position.x + player1.size.x/2 < camera.position.x - camera.size.x/2) {
+            gameOver = true;
+        } else if (player2.position.x + player2.size.x/2 < camera.position.x - camera.size.x/2) {
+            gameOver = true;
         }
     }
     void process(SDL_Event &event, const Uint8 *keys) {
         // pausing
-        if (keys[SDL_SCANCODE_ESCAPE] && !escPressed) { paused = !paused; escPressed = true; }
-        if (!keys[SDL_SCANCODE_ESCAPE]) { escPressed = false; }
-        if (!paused) {
+        if (!gameOver) {
+            if (keys[SDL_SCANCODE_ESCAPE] && !escPressed) { paused = !paused; escPressed = true; }
+            if (!keys[SDL_SCANCODE_ESCAPE]) { escPressed = false; }
+        }
+        if (!paused && !gameOver) {
             player1.process(keys);
             player2.process(keys);
-        } else {
+        } else if (paused) {
             if (keys[SDL_SCANCODE_SPACE]) {
                 paused = false;
             } else if (keys[SDL_SCANCODE_Q]) {
+                goToMenu = true;
+            } else if (keys[SDL_SCANCODE_R]) {
+                restart = true;
+            }
+        } else if (gameOver) {
+            if (keys[SDL_SCANCODE_Q]) {
                 goToMenu = true;
             } else if (keys[SDL_SCANCODE_R]) {
                 restart = true;
@@ -411,6 +450,19 @@ public:
             if (right_i >= vector.size()) { right_i = 0; }
         }
     }
+    void generateObstacles(std::vector<Entity> &vector) {
+        for (int i=0; i < vector.size(); i++) {
+            if (vector[i].position.x + vector[i].size.x/2
+                < camera.position.x - camera.size.x/2) {
+                float x = camera.position.x + camera.size.x/2 + (rand() % 32) * 0.1;
+                x = floor(x * 10) / 10 + 0.15;
+                float y = -0.45 + (rand() % 12) * 0.101;
+                y = floor(y * 10) / 10 + 0.05;
+                vector[i].position.x = x;
+                vector[i].position.y = y;
+            }
+        }
+    }
     void reset() {
         player1 = Player(0, 1.0, 0.099, 0.099, 0.75, 0.33, 0.33, 0.8, 0.3, 0);
         player2 = Player(0, 1.0, 0.099, 0.099, 0.33, 0.33, 0.75, 0.8, 0.3, 0);
@@ -418,6 +470,7 @@ public:
         paused = false;
         escPressed = false;
         goToMenu = false;
+        gameOver = false;
         // player key bindings
         player1.upKey = SDL_SCANCODE_UP;
         player1.rightKey = SDL_SCANCODE_RIGHT;
@@ -447,22 +500,11 @@ public:
         right_platform_i = platforms.size() - 1;
         // obstacles
         obstacles.clear();
-        obstacles.push_back(Entity(4.0, -0.45, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
-        obstacles.push_back(Entity(4.1, -0.35, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
-        obstacles.push_back(Entity(4.2, -0.25, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
-        obstacles.push_back(Entity(4.3, -0.15, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
-        obstacles.push_back(Entity(4.4, -0.25, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
-        obstacles.push_back(Entity(4.5, -0.35, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
-        left_obstacle_i = 0;
-        right_obstacle_i = obstacles.size() - 1;
+        for (int i=0; i < 50; i++) {
+            obstacles.push_back(Entity(-10, -0.45, 0.1, 0.1, 0.75, 0.75, 0.33, 1));
+        }
     }
 
-    // FINISH LATER
-    void generateObstacles(std::vector<Entity> &vector, size_t &left_i, size_t &right_i) {
-        
-    }
-
-    
     Player player1;
     Player player2;
     std::vector<Entity> background;
@@ -473,10 +515,9 @@ public:
     size_t right_panel_i;
     size_t left_platform_i;
     size_t right_platform_i;
-    size_t left_obstacle_i;
-    size_t right_obstacle_i;
     bool paused;
     bool escPressed;
+    bool gameOver;
     bool goToMenu;
     bool restart;
 };
