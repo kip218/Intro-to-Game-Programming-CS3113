@@ -39,6 +39,7 @@ Mix_Music *music;
 Mix_Chunk *jump;
 Mix_Chunk *landing;
 
+
 /*
  Functions
 */
@@ -57,10 +58,6 @@ GLuint LoadTexture(const char *filePath) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     stbi_image_free(image);
     return retTexture;
-}
-
-float lerp(float v0, float v1, float t) {
-    return (1.0-t)*v0 + t*v1;
 }
 
 float mapValue(float value, float srcMin, float srcMax, float dstMin, float dstMax) {
