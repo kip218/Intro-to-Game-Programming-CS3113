@@ -63,6 +63,17 @@ float lerp(float v0, float v1, float t) {
     return (1.0-t)*v0 + t*v1;
 }
 
+float mapValue(float value, float srcMin, float srcMax, float dstMin, float dstMax) {
+    float retVal = dstMin + ((value - srcMin)/(srcMax-srcMin) * (dstMax-dstMin));
+    if(retVal < dstMin) {
+        retVal = dstMin;
+    }
+    if(retVal > dstMax) {
+        retVal = dstMax;
+    }
+    return retVal;
+}
+
 
 /*
  Classes
@@ -116,63 +127,14 @@ public:
     float fontSize;
 };
 
-class Particle {
-public:
-    Particle(float x, float y) : position(x, y, 0), velocity(0, 0.1, 0) {}
-    glm::vec3 position;
-    glm::vec3 velocity;
-    float lifetime;
-};
-
-class ParticleEmitter {
-public:
-    ParticleEmitter(unsigned int particleCount) {
-        for (int i = 0; i < particleCount; i++) {
-            particles.push_back(Particle(0, 0));
-        }
-    }
-    void update(float elapsed) {
-        for (Particle &particle : particles) {
-            particle.position += particle.velocity * elapsed;
-        }
-    };
-    void render(ShaderProgram &p) {
-        std::vector<float> vertices;
-        for (int i=0; i < particles.size(); i++) {
-            vertices.push_back(particles[i].position.x);
-            vertices.push_back(particles[i].position.y);
-        }
-        std::vector<float> particleColors;
-        for (int i=0; i < particles.size(); i++) {
-            float relativeLifetime = (particles[i].lifetime/maxLifetime);
-            particleColors.push_back(lerp(startColor.r, endColor.r, relativeLifetime));
-            particleColors.push_back(lerp(startColor.g, endColor.g, relativeLifetime));
-            particleColors.push_back(lerp(startColor.b, endColor.b, relativeLifetime));
-            particleColors.push_back(lerp(startColor.a, endColor.a, relativeLifetime));
-        }
-        glVertexAttribPointer(p.positionAttribute, 2, GL_FLOAT, false, 0, vertices.data());
-        glEnableVertexAttribArray(p.positionAttribute);
-        glDrawArrays(GL_POINTS, 0, (int)particles.size());
-        glDisableVertexAttribArray(p.positionAttribute);
-    }
-    glm::vec3 position;
-    glm::vec3 velocity;
-    glm::vec3 velocityDeviation;
-    glm::vec3 gravity;
-    glm::vec4 startColor;
-    glm::vec4 endColor;
-    float maxLifetime;
-    std::vector<Particle> particles;
-};
-
 class Entity {
 public:
     Entity(float x, float y, float width, float height, float r, float g, float b, float a)
-    : position(x, y, 0), size(width, height, 1), color(r, g, b, a), angle(0) {}
+    : position(x, y, 0), size(width, height, 1), color(r, g, b, a), angle(0), scaleX(1), scaleY(1) {}
     void draw(ShaderProgram &p) const {
         glm::mat4 entityModelMatrix = glm::translate(modelMatrix, position);
         entityModelMatrix = glm::rotate(entityModelMatrix, angle * (3.1415926f / 180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        entityModelMatrix = glm::scale(entityModelMatrix, size);
+        entityModelMatrix = glm::scale(glm::scale(entityModelMatrix, size), glm::vec3(scaleX, scaleY, 1.0f));
         p.SetModelMatrix(entityModelMatrix);
         float vertices[] = {-0.5, 0.5, -0.5, -0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, 0.5, -0.5};
         glVertexAttribPointer(p.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
@@ -186,6 +148,8 @@ public:
     glm::vec3 size;
     glm::vec4 color;
     float angle;
+    float scaleX;
+    float scaleY;
 };
 
 class Player : public Entity {
@@ -243,6 +207,8 @@ public:
         }
         if (collidedBottom && !onGround) { Mix_PlayChannel(-1, landing, 0); onGround = true; }
         if (!collidedBottom) { onGround = false; }
+        scaleY = mapValue(fabs(velocity.y), 0.0, 7.0, 1.0, 2.0);
+        scaleX = mapValue(fabs(velocity.y), 7.0, 0.0, 0.4, 1.0);
     }
     void process(const Uint8 *keys) {
         if (keys[upKey] && collidedBottom) {
@@ -637,7 +603,6 @@ void render() {
     SDL_GL_SwapWindow(displayWindow);
     glFlush();
 }
-
 
 int main() {
     setup();
