@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3498A6AF228B80FD00FAAAA6 /* font.png in Resources */ = {isa = PBXBuildFile; fileRef = 3498A6AE228B80FD00FAAAA6 /* font.png */; };
+		3498A6B8228BD91E00FAAAA6 /* SDL2_mixer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3498A6B7228BD91E00FAAAA6 /* SDL2_mixer.framework */; };
+		3498A6BA228BE0E200FAAAA6 /* Chiptronical.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3498A6B9228BE0E100FAAAA6 /* Chiptronical.mp3 */; };
+		3498A6BC228BE2E000FAAAA6 /* jump.wav in Resources */ = {isa = PBXBuildFile; fileRef = 3498A6BB228BE2E000FAAAA6 /* jump.wav */; };
+		3498A6BE228BFCA900FAAAA6 /* landing.wav in Resources */ = {isa = PBXBuildFile; fileRef = 3498A6BD228BFCA800FAAAA6 /* landing.wav */; };
 		34F39EF4226EBC61005F29DD /* FlareMap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 34F39EF3226EBC61005F29DD /* FlareMap.cpp */; };
 		6D5A86AE19AE5C710066C1FD /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6D5A86AD19AE5C710066C1FD /* Cocoa.framework */; };
 		6D5A86B819AE5C710066C1FD /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 6D5A86B619AE5C710066C1FD /* InfoPlist.strings */; };
@@ -24,6 +29,11 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3498A6AE228B80FD00FAAAA6 /* font.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = font.png; sourceTree = "<group>"; };
+		3498A6B7228BD91E00FAAAA6 /* SDL2_mixer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2_mixer.framework; path = ../../../../../Library/Frameworks/SDL2_mixer.framework; sourceTree = "<group>"; };
+		3498A6B9228BE0E100FAAAA6 /* Chiptronical.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Chiptronical.mp3; sourceTree = "<group>"; };
+		3498A6BB228BE2E000FAAAA6 /* jump.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = jump.wav; sourceTree = "<group>"; };
+		3498A6BD228BFCA800FAAAA6 /* landing.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = landing.wav; sourceTree = "<group>"; };
 		34F39EF3226EBC61005F29DD /* FlareMap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = FlareMap.cpp; sourceTree = "<group>"; };
 		34F39EF5226EBC66005F29DD /* FlareMap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FlareMap.h; sourceTree = "<group>"; };
 		6D5A86AA19AE5C710066C1FD /* NYUCodebase.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NYUCodebase.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -53,6 +63,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6D5AC2D019AE6280004CB1BF /* OpenGL.framework in Frameworks */,
+				3498A6B8228BD91E00FAAAA6 /* SDL2_mixer.framework in Frameworks */,
 				6D5A86AE19AE5C710066C1FD /* Cocoa.framework in Frameworks */,
 				6D5A86E319AE5CD10066C1FD /* SDL2.framework in Frameworks */,
 				6D5AC2D219AE6A1E004CB1BF /* SDL2_image.framework in Frameworks */,
@@ -65,6 +76,10 @@
 		34F39EEA226EB8B6005F29DD /* Assets */ = {
 			isa = PBXGroup;
 			children = (
+				3498A6BD228BFCA800FAAAA6 /* landing.wav */,
+				3498A6BB228BE2E000FAAAA6 /* jump.wav */,
+				3498A6B9228BE0E100FAAAA6 /* Chiptronical.mp3 */,
+				3498A6AE228B80FD00FAAAA6 /* font.png */,
 			);
 			name = Assets;
 			sourceTree = "<group>";
@@ -89,6 +104,7 @@
 		6D5A86AC19AE5C710066C1FD /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				3498A6B7228BD91E00FAAAA6 /* SDL2_mixer.framework */,
 				6D5AC2D119AE6A1E004CB1BF /* SDL2_image.framework */,
 				6D5AC2CF19AE6280004CB1BF /* OpenGL.framework */,
 				6D5A86E219AE5CD10066C1FD /* SDL2.framework */,
@@ -198,9 +214,13 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3498A6BC228BE2E000FAAAA6 /* jump.wav in Resources */,
 				6D5A86B819AE5C710066C1FD /* InfoPlist.strings in Resources */,
+				3498A6BE228BFCA900FAAAA6 /* landing.wav in Resources */,
 				6DEF23C11B96CC2600BCE792 /* fragment.glsl in Resources */,
+				3498A6AF228B80FD00FAAAA6 /* font.png in Resources */,
 				6DE9D2F11BA6AB8C002D599C /* fragment_textured.glsl in Resources */,
+				3498A6BA228BE0E200FAAAA6 /* Chiptronical.mp3 in Resources */,
 				6D5A86C619AE5C710066C1FD /* Images.xcassets in Resources */,
 				6D5A86BE19AE5C710066C1FD /* Credits.rtf in Resources */,
 				6DEF23C41B96CC2600BCE792 /* vertex.glsl in Resources */,
@@ -348,6 +368,7 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+					"$(PROJECT_DIR)",
 				);
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "";
@@ -356,6 +377,7 @@
 					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
 					/Library/Frameworks/SDL2_image.framework/Versions/A/Headers,
 					/Library/Frameworks/SDL2.framework/Versions/A/Headers,
+					/Library/Frameworks/SDL2_mixer.framework/Versions/A/Headers,
 				);
 				INFOPLIST_FILE = "NYUCodebase/NYUCodebase-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "org.ivansafrin.${PRODUCT_NAME:rfc1034identifier}";
@@ -372,6 +394,7 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+					"$(PROJECT_DIR)",
 				);
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "";
